@@ -1,0 +1,352 @@
+[
+  {
+    "date": "2026-06-01",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": "Journée longue"
+  },
+  {
+    "date": "2026-06-02",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-03",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-04",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-05",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-06",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": "Journée courte"
+  },
+  {
+    "date": "2026-06-07",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-08",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-09",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-10",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-11",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-12",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": "Journée courte"
+  },
+  {
+    "date": "2026-06-13",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-14",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-15",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-16",
+    "status": "formation",
+    "start": "09:00",
+    "end": "17:00",
+    "note": "Formation annuelle"
+  },
+  {
+    "date": "2026-06-17",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-18",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-19",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-20",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-21",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-22",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-23",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-24",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-25",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-26",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-27",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-28",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-06-29",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-06-30",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": "Dernier jour du mois"
+  },
+  {
+    "date": "2026-07-01",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-02",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-03",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-04",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-07-05",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-07-06",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-07",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-08",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "17:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-09",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-10",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  },
+  {
+    "date": "2026-07-11",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-12",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-13",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-14",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-15",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-16",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-17",
+    "status": "congé",
+    "start": "",
+    "end": "",
+    "note": "Congés été"
+  },
+  {
+    "date": "2026-07-18",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-07-19",
+    "status": "repos",
+    "start": "",
+    "end": "",
+    "note": ""
+  },
+  {
+    "date": "2026-07-20",
+    "status": "travaille",
+    "start": "07:20",
+    "end": "20:00",
+    "note": ""
+  }
+]

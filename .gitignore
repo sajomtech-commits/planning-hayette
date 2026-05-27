@@ -1,0 +1,4 @@
+# Planning Hayette - fichiers ignorés
+.DS_Store
+Thumbs.db
+*.log
