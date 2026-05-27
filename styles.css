@@ -755,6 +755,58 @@ body {
   line-height: 1;
 }
 
+/* Écran verrouillage modification */
+.verrou-message {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.verrou-icone {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+
+.verrou-input {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid var(--couleur-bordure);
+  border-radius: 8px;
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 12px;
+  max-width: 300px;
+}
+
+.verrou-input:focus {
+  outline: none;
+  border-color: var(--couleur-primaire);
+  box-shadow: 0 0 0 3px rgba(91, 125, 177, 0.15);
+}
+
+.verrou-error {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  display: none;
+}
+
+/* Indicateur Supabase */
+.indicateur-supabase {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.indicateur-local {
+  background: #FFF3E0;
+  color: #E65100;
+}
+
 /* Toast notification */
 .toast {
   position: fixed;

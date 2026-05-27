@@ -1,13 +1,22 @@
 const PlanningApp = (() => {
   const STORAGE_KEY = 'planning_hayette_donnees';
-  const STATUTS = ['travaille', 'repos', 'congé', 'formation', 'autre'];
+  const STATUTS = ['travaille', 'repos', 'conge', 'formation', 'autre'];
+  const STATUTS_LABELS = {
+    travaille: 'Travaillé',
+    repos: 'Repos',
+    conge: 'Congé',
+    formation: 'Formation',
+    autre: 'Autre'
+  };
   const JOURS_SEMAINE = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   const JOURS_COMPLETS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   const MOIS_NOMS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
   let donnees = [];
   let vueActuelle = 'aujourdhui';
-  let dateCourante = new Date();
+  let supabase = null;
+  let supabaseConfiguree = false;
+  let modeEditionDebloque = false;
 
   function aujourdhui() {
     const d = new Date();
@@ -41,59 +50,131 @@ const PlanningApp = (() => {
     return new Date(y, m - 1, j);
   }
 
-  function chargerDonnees() {
-    const stockees = localStorage.getItem(STORAGE_KEY);
-    if (stockees) {
+  function initialiserSupabase() {
+    const config = window.APP_CONFIG || {};
+    if (config.supabaseUrl && config.supabaseUrl !== 'A_COMPLETER' &&
+        config.supabaseAnonKey && config.supabaseAnonKey !== 'A_COMPLETER') {
       try {
-        donnees = JSON.parse(stockees);
-        return Promise.resolve();
+        supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        supabaseConfiguree = true;
       } catch (e) {
-        console.warn('Erreur lecture localStorage, chargement fichier JSON');
+        console.warn('Erreur initialisation Supabase:', e);
+        supabaseConfiguree = false;
       }
     }
-    return fetch('data/planning.json')
-      .then(r => {
-        if (!r.ok) throw new Error('Fichier planning.json introuvable');
-        return r.json();
-      })
-      .then(d => {
-        donnees = d;
+  }
+
+  function formaterLigneSupabase(ligne) {
+    return {
+      id: ligne.id,
+      date: ligne.date,
+      status: ligne.status,
+      start: ligne.start_time || '',
+      end: ligne.end_time || '',
+      note: ligne.note || ''
+    };
+  }
+
+  function chargerDonnees() {
+    if (supabaseConfiguree) {
+      return chargerDepuisSupabase();
+    }
+    return chargerDepuisCacheLocal();
+  }
+
+  function chargerDepuisSupabase() {
+    return supabase
+      .from('planning_hayette')
+      .select('*')
+      .order('date', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (data && data.length > 0) {
+          donnees = data.map(formaterLigneSupabase);
+        } else {
+          donnees = [];
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+        return donnees;
       })
-      .catch(() => {
-        donnees = [];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+      .catch(err => {
+        console.warn('Erreur chargement Supabase, fallback cache local:', err);
+        return chargerDepuisCacheLocal();
       });
   }
 
-  function sauvegarderDonnees() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+  function chargerDepuisCacheLocal() {
+    return new Promise(resolve => {
+      const stockees = localStorage.getItem(STORAGE_KEY);
+      if (stockees) {
+        try {
+          donnees = JSON.parse(stockees);
+          resolve(donnees);
+          return;
+        } catch (e) {
+          console.warn('Erreur lecture localStorage');
+        }
+      }
+      fetch('data/planning.json')
+        .then(r => {
+          if (!r.ok) throw new Error('Fichier planning.json introuvable');
+          return r.json();
+        })
+        .then(d => {
+          donnees = d;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+          resolve(donnees);
+        })
+        .catch(() => {
+          donnees = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+          resolve(donnees);
+        });
+    });
   }
 
   function mettreJour(dateStr, infos) {
     const idx = donnees.findIndex(j => j.date === dateStr);
-    if (idx >= 0) {
-      donnees[idx] = { ...donnees[idx], ...infos };
-    } else {
-      donnees.push({
-        date: dateStr,
-        status: 'repos',
-        start: '',
-        end: '',
-        note: '',
-        ...infos
-      });
-    }
-    sauvegarderDonnees();
-    renduComplet();
-    montrerNotification('Planning mis à jour');
-  }
+    const updated_at = new Date().toISOString();
 
-  function creerJour(dateStr) {
-    if (!trouverJour(dateStr)) {
-      donnees.push({ date: dateStr, status: 'repos', start: '', end: '', note: '' });
-      donnees.sort((a, b) => a.date.localeCompare(b.date));
-      sauvegarderDonnees();
+    if (supabaseConfiguree) {
+      const record = {
+        date: dateStr,
+        status: infos.status || 'repos',
+        start_time: infos.start || null,
+        end_time: infos.end || null,
+        note: infos.note || null
+      };
+
+      (idx >= 0 ? supabase.from('planning_hayette').update(record).eq('date', dateStr)
+                : supabase.from('planning_hayette').insert(record))
+        .then(({ error }) => {
+          if (error) {
+            console.error('Erreur Supabase:', error);
+            montrerNotification('Erreur de sauvegarde');
+            return;
+          }
+          chargerDepuisSupabase().then(() => {
+            renduComplet();
+            montrerNotification('Planning mis à jour');
+          });
+        });
+    } else {
+      if (idx >= 0) {
+        donnees[idx] = { ...donnees[idx], ...infos };
+      } else {
+        donnees.push({
+          date: dateStr,
+          status: 'repos',
+          start: '',
+          end: '',
+          note: '',
+          ...infos
+        });
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+      renduComplet();
+      montrerNotification('Planning mis à jour (local)');
     }
   }
 
@@ -104,18 +185,11 @@ const PlanningApp = (() => {
       .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
   }
 
-  function dernierJourTravaille() {
-    const aujourd = formaterDate(aujourdhui());
-    return donnees
-      .filter(j => j.status === 'travaille' && j.date < aujourd)
-      .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-  }
-
   function statutBadgeClass(status) {
     const map = {
       'travaille': 'badge-travaille',
       'repos': 'badge-repos',
-      'congé': 'badge-conge',
+      'conge': 'badge-conge',
       'formation': 'badge-formation',
       'autre': 'badge-autre'
     };
@@ -130,7 +204,7 @@ const PlanningApp = (() => {
     const map = {
       'travaille': '#4CAF50',
       'repos': '#9E9E9E',
-      'congé': '#9C27B0',
+      'conge': '#9C27B0',
       'formation': '#FF9800',
       'autre': '#E91E63'
     };
@@ -141,7 +215,7 @@ const PlanningApp = (() => {
     const map = {
       'travaille': '💼',
       'repos': '🏠',
-      'congé': '🏖️',
+      'conge': '🏖️',
       'formation': '📚',
       'autre': '📌'
     };
@@ -173,6 +247,17 @@ const PlanningApp = (() => {
   }
 
   function changerVue(vue) {
+    if (vue === 'edition' && supabaseConfiguree && !modeEditionDebloque) {
+      vueActuelle = 'edition';
+      renduNavigation();
+      document.querySelectorAll('.vue').forEach(el => el.classList.remove('active'));
+      const el = document.getElementById('vue-edition');
+      if (el) el.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renduVerrouEdition();
+      return;
+    }
+
     vueActuelle = vue;
     renduNavigation();
     document.querySelectorAll('.vue').forEach(el => el.classList.remove('active'));
@@ -200,7 +285,7 @@ const PlanningApp = (() => {
         <div class="aujourdhui-date">${JOURS_COMPLETS[ajd.getDay()]} ${formaterDateLisible(ajd)}</div>
         <div class="aujourdhui-statut">
           <span class="badge ${statutBadgeClass(jour.status)}">
-            ${iconeStatut(jour.status)} ${jour.status.charAt(0).toUpperCase() + jour.status.slice(1)}
+            ${iconeStatut(jour.status)} ${STATUTS_LABELS[jour.status] || jour.status}
           </span>
         </div>
         ${jour.status === 'travaille' && jour.start && jour.end ? `
@@ -209,6 +294,7 @@ const PlanningApp = (() => {
           <div class="aujourdhui-horaire">Horaires non renseignés</div>
         ` : ''}
         ${jour.note ? `<div class="aujourdhui-note">📝 ${jour.note}</div>` : ''}
+        ${!supabaseConfiguree ? '<div style="margin-top:8px;font-size:0.75rem;color:#e67e22">⚠ Mode local (pas de synchronisation)</div>' : ''}
       </div>
 
       <div class="carte">
@@ -256,7 +342,7 @@ const PlanningApp = (() => {
             <br><small>${j.date.getDate()} ${MOIS_NOMS[j.date.getMonth()].slice(0, 3)}</small>
           </div>
           <div class="lj-statut">
-            <span class="badge ${statutBadgeClass(j.donnee.status)}">${iconeStatut(j.donnee.status)} ${j.donnee.status}</span>
+            <span class="badge ${statutBadgeClass(j.donnee.status)}">${iconeStatut(j.donnee.status)} ${STATUTS_LABELS[j.donnee.status] || j.donnee.status}</span>
           </div>
           <div class="lj-horaire">
             ${j.donnee.start ? `${j.donnee.start}${j.donnee.end ? '-' + j.donnee.end : ''}` : '—'}
@@ -283,12 +369,12 @@ const PlanningApp = (() => {
         </div>
         <div class="legende">
           ${Object.entries({
-            'travaille': '#4CAF50', 'repos': '#9E9E9E', 'congé': '#9C27B0',
+            'travaille': '#4CAF50', 'repos': '#9E9E9E', 'conge': '#9C27B0',
             'formation': '#FF9800', 'autre': '#E91E63'
           }).map(([k, v]) => `
             <div class="legende-item">
               <span class="legende-point" style="background:${v}"></span>
-              ${k.charAt(0).toUpperCase() + k.slice(1)}
+              ${STATUTS_LABELS[k] || k}
             </div>
           `).join('')}
         </div>
@@ -339,7 +425,7 @@ const PlanningApp = (() => {
           <div class="num-jour">${d.getDate()}</div>
           ${jour.status === 'travaille' && jour.start && jour.end
             ? `<div class="mini-horaire">${jour.start}<br>${jour.end}</div>`
-            : `<div class="mini-horaire" style="font-size:0.7rem">${jour.status}</div>`}
+            : `<div class="mini-horaire" style="font-size:0.7rem">${STATUTS_LABELS[jour.status] || jour.status}</div>`}
           <span class="point" style="background:${couleur};width:6px;height:6px;border-radius:50%;display:inline-block"></span>
         </div>
       `;
@@ -371,12 +457,12 @@ const PlanningApp = (() => {
         </div>
         <div class="legende">
           ${Object.entries({
-            'travaille': '#4CAF50', 'repos': '#9E9E9E', 'congé': '#9C27B0',
+            'travaille': '#4CAF50', 'repos': '#9E9E9E', 'conge': '#9C27B0',
             'formation': '#FF9800', 'autre': '#E91E63'
           }).map(([k, v]) => `
             <div class="legende-item">
               <span class="legende-point" style="background:${v}"></span>
-              ${k.charAt(0).toUpperCase() + k.slice(1)}
+              ${STATUTS_LABELS[k] || k}
             </div>
           `).join('')}
         </div>
@@ -429,9 +515,9 @@ const PlanningApp = (() => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     if (joursMois.length > 0) {
-      const travail = joursMois.filter(j => j.status === 'travaille').length;
+      const travaille = joursMois.filter(j => j.status === 'travaille').length;
       const repos = joursMois.filter(j => j.status === 'repos').length;
-      const conge = joursMois.filter(j => j.status === 'congé').length;
+      const conge = joursMois.filter(j => j.status === 'conge').length;
       const formation = joursMois.filter(j => j.status === 'formation').length;
       const autre = joursMois.filter(j => j.status === 'autre').length;
 
@@ -454,7 +540,7 @@ const PlanningApp = (() => {
           <div class="ligne-jour" onclick="PlanningApp.ouvrirEditionJour('${j.date}')">
             <div class="lj-date">${JOURS_SEMAINE[d.getDay()]} ${d.getDate()}</div>
             <div class="lj-statut">
-              <span class="badge ${statutBadgeClass(j.status)}">${iconeStatut(j.status)} ${j.status}</span>
+              <span class="badge ${statutBadgeClass(j.status)}">${iconeStatut(j.status)} ${STATUTS_LABELS[j.status] || j.status}</span>
             </div>
             <div class="lj-horaire">${j.start ? `${j.start}${j.end ? '-' + j.end : ''}` : '—'}</div>
           </div>
@@ -507,7 +593,7 @@ const PlanningApp = (() => {
       const moisStr = String(m + 1).padStart(2, '0');
       const joursMois = donnees.filter(j => j.date.startsWith(`${annee}-${moisStr}`));
       const total = joursMois.length;
-      const travail = joursMois.filter(j => j.status === 'travaille').length;
+      const travaille = joursMois.filter(j => j.status === 'travaille').length;
       const repos = joursMois.filter(j => j.status === 'repos').length;
 
       const carte = document.createElement('div');
@@ -518,15 +604,15 @@ const PlanningApp = (() => {
         renduMois(annee, m);
       };
 
-      const travailPct = total > 0 ? (travail / total) * 100 : 0;
+      const travailPct = total > 0 ? (travaille / total) * 100 : 0;
       const reposPct = total > 0 ? (repos / total) * 100 : 0;
-      const autrePct = total > 0 ? ((total - travail - repos) / total) * 100 : 0;
+      const autrePct = total > 0 ? ((total - travaille - repos) / total) * 100 : 0;
 
       carte.innerHTML = `
         <div class="mois-nom">${MOIS_NOMS[m]}</div>
         <div class="stats-mois">
           📅 ${total} jours renseignés<br>
-          💼 ${travail} jours travaillés
+          💼 ${travaille} jours travaillés
         </div>
         ${total > 0 ? `
           <div class="barre-stats">
@@ -541,16 +627,65 @@ const PlanningApp = (() => {
     }
   }
 
+  function renduVerrouEdition() {
+    const conteneur = document.getElementById('vue-edition');
+    const config = window.APP_CONFIG || {};
+
+    conteneur.innerHTML = `
+      <div class="carte" style="text-align:center;padding:40px 20px">
+        <div style="font-size:2rem;margin-bottom:16px">🔒</div>
+        <div class="titre-carte" style="font-size:1rem;text-transform:none;letter-spacing:0">
+          Modification protégée par mot de passe
+        </div>
+        <p style="color:var(--couleur-texte-secondaire);margin-bottom:20px;font-size:0.9rem">
+          Veuillez saisir le mot de passe pour accéder à l'édition.
+        </p>
+        <div style="max-width:300px;margin:0 auto">
+          <input type="password" id="password-input"
+                 placeholder="Mot de passe"
+                 style="width:100%;padding:14px;border:2px solid var(--couleur-bordure);border-radius:8px;font-size:1rem;text-align:center;margin-bottom:12px">
+          <button id="password-submit" class="btn btn-primaire" style="width:100%">Déverrouiller</button>
+          <p id="password-error" style="color:#e74c3c;font-size:0.85rem;margin-top:8px;display:none">Mot de passe incorrect</p>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('password-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') verifierMotDePasse();
+    });
+    document.getElementById('password-submit').addEventListener('click', verifierMotDePasse);
+
+    setTimeout(() => document.getElementById('password-input').focus(), 200);
+  }
+
+  function verifierMotDePasse() {
+    const input = document.getElementById('password-input');
+    const error = document.getElementById('password-error');
+    const config = window.APP_CONFIG || {};
+
+    if (input.value === config.editPassword && config.editPassword && config.editPassword !== 'A_COMPLETER') {
+      modeEditionDebloque = true;
+      error.style.display = 'none';
+      renduEdition();
+    } else {
+      error.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  }
+
   function renduEdition() {
     const conteneur = document.getElementById('vue-edition');
-
     const ajd = aujourdhui();
     const ajdStr = formaterDate(ajd);
     const jour = trouverJour(ajdStr) || { date: ajdStr, status: 'repos', start: '', end: '', note: '' };
 
     conteneur.innerHTML = `
       <div class="carte">
-        <div class="titre-carte">Modifier une journée</div>
+        <div class="titre-carte" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Modifier une journée</span>
+          <button id="btn-verrouiller" class="btn btn-secondaire" style="padding:4px 12px;font-size:0.75rem;min-width:auto;flex:none">🔒 Verrouiller</button>
+        </div>
         <form id="form-edition" class="form-edition">
           <div class="groupe-champ">
             <label for="edit-date">Date</label>
@@ -561,7 +696,7 @@ const PlanningApp = (() => {
             <select id="edit-status">
               ${STATUTS.map(s => `
                 <option value="${s}" ${jour.status === s ? 'selected' : ''}>
-                  ${s.charAt(0).toUpperCase() + s.slice(1)}
+                  ${STATUTS_LABELS[s] || s}
                 </option>
               `).join('')}
             </select>
@@ -590,7 +725,7 @@ const PlanningApp = (() => {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
           <button class="btn btn-primaire" data-rapide="travaille">💼 Travaillé</button>
           <button class="btn btn-secondaire" data-rapide="repos">🏠 Repos</button>
-          <button class="btn" style="background:var(--statut-conge-fond);color:var(--statut-conge);font-weight:600" data-rapide="congé">🏖️ Congé</button>
+          <button class="btn" style="background:var(--statut-conge-fond);color:var(--statut-conge);font-weight:600" data-rapide="conge">🏖️ Congé</button>
           <button class="btn" style="background:var(--statut-formation-fond);color:var(--statut-formation);font-weight:600" data-rapide="formation">📚 Formation</button>
         </div>
       </div>
@@ -606,8 +741,14 @@ const PlanningApp = (() => {
           <input type="file" id="input-fichier" accept=".json" style="display:none">
           <button class="btn btn-danger" id="btn-reinitialiser">🔄 Réinitialiser</button>
         </div>
+        ${supabaseConfiguree ? '<p style="margin-top:8px;font-size:0.8rem;color:var(--couleur-texte-secondaire)">⚡ Les données sont synchronisées avec Supabase</p>' : ''}
       </div>
     `;
+
+    document.getElementById('btn-verrouiller').addEventListener('click', () => {
+      modeEditionDebloque = false;
+      rendreVerrouille();
+    });
 
     document.getElementById('form-edition').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -633,7 +774,6 @@ const PlanningApp = (() => {
         const date = document.getElementById('edit-date').value;
         const status = btn.dataset.rapide;
         document.getElementById('edit-status').value = status;
-        creerJour(date);
         mettreJour(date, { status });
       });
     });
@@ -662,7 +802,18 @@ const PlanningApp = (() => {
     });
   }
 
+  function rendreVerrouille() {
+    const conteneur = document.getElementById('vue-edition');
+    document.querySelectorAll('.vue').forEach(el => el.classList.remove('active'));
+    if (conteneur) conteneur.classList.add('active');
+    renduVerrouEdition();
+  }
+
   function ouvrirEditionJour(dateStr) {
+    if (supabaseConfiguree && !modeEditionDebloque) {
+      changerVue('edition');
+      return;
+    }
     changerVue('edition');
     setTimeout(() => {
       const champ = document.getElementById('edit-date');
@@ -674,7 +825,14 @@ const PlanningApp = (() => {
   }
 
   function exporterDonnees() {
-    const blob = new Blob([JSON.stringify(donnees, null, 2)], { type: 'application/json' });
+    const data = donnees.map(j => ({
+      date: j.date,
+      status: j.status,
+      start_time: j.start || null,
+      end_time: j.end || null,
+      note: j.note || null
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -694,10 +852,39 @@ const PlanningApp = (() => {
       try {
         const data = JSON.parse(evt.target.result);
         if (!Array.isArray(data)) throw new Error('Format invalide');
-        donnees = data;
-        sauvegarderDonnees();
-        renduComplet();
-        montrerNotification(`${data.length} jours importés`);
+
+        if (supabaseConfiguree) {
+          const records = data.map(j => ({
+            date: j.date,
+            status: j.status || 'repos',
+            start_time: j.start_time || j.start || null,
+            end_time: j.end_time || j.end || null,
+            note: j.note || null
+          }));
+
+          supabase.from('planning_hayette').upsert(records, { onConflict: 'date' })
+            .then(({ error }) => {
+              if (error) {
+                montrerNotification('Erreur import Supabase');
+                return;
+              }
+              chargerDepuisSupabase().then(() => {
+                renduComplet();
+                montrerNotification(`${data.length} jours importés`);
+              });
+            });
+        } else {
+          donnees = data.map(j => ({
+            date: j.date,
+            status: j.status || 'repos',
+            start: j.start || j.start_time || '',
+            end: j.end || j.end_time || '',
+            note: j.note || ''
+          }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(donnees));
+          renduComplet();
+          montrerNotification(`${data.length} jours importés (local)`);
+        }
       } catch (err) {
         montrerNotification('Erreur : fichier JSON invalide');
       }
@@ -709,10 +896,21 @@ const PlanningApp = (() => {
   function reinitialiserDonnees() {
     if (!confirm('Voulez-vous vraiment réinitialiser toutes les données locales ?')) return;
     localStorage.removeItem(STORAGE_KEY);
-    chargerDonnees().then(() => {
-      renduComplet();
-      montrerNotification('Données réinitialisées');
-    });
+    if (supabaseConfiguree) {
+      supabase.from('planning_hayette').delete().gte('date', '2000-01-01')
+        .then(() => {
+          donnees = [];
+          chargerDepuisSupabase().then(() => {
+            renduComplet();
+            montrerNotification('Données réinitialisées');
+          });
+        });
+    } else {
+      chargerDonnees().then(() => {
+        renduComplet();
+        montrerNotification('Données réinitialisées');
+      });
+    }
   }
 
   function montrerNotification(msg) {
@@ -739,10 +937,17 @@ const PlanningApp = (() => {
     else if (vueActuelle === 'semaine') renduSemaine();
     else if (vueActuelle === 'mois') renduMois();
     else if (vueActuelle === 'annee') renduAnnee();
-    else if (vueActuelle === 'edition') renduEdition();
+    else if (vueActuelle === 'edition') {
+      if (supabaseConfiguree && !modeEditionDebloque) {
+        renduVerrouEdition();
+      } else {
+        renduEdition();
+      }
+    }
   }
 
   function initialiser() {
+    initialiserSupabase();
     chargerDonnees().then(() => {
       renduComplet();
     });

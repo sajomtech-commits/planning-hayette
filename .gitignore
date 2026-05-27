@@ -2,3 +2,6 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Configuration locale (Supabase URL, clé anon, mot de passe)
+config.js
